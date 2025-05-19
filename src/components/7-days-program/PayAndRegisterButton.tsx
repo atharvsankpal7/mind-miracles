@@ -4,7 +4,7 @@ import Script from 'next/script';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { courses } from '@/types';
 import { useRecoilValue, useResetRecoilState } from 'recoil';
 import { registrationFormStateAtom } from '@/store';
@@ -13,9 +13,11 @@ import { Spinner } from '../spinner';
 export const PayAndRegisterButton = ({
   course_name,
   amount_to_pay,
+  onBeforePayment,
 }: {
   course_name: courses;
   amount_to_pay: number;
+  onBeforePayment: () => boolean;
 }) => {
   const form_values = useRecoilValue(registrationFormStateAtom);
   const reset_form_values = useResetRecoilState(registrationFormStateAtom);
@@ -25,55 +27,64 @@ export const PayAndRegisterButton = ({
   const amountToPay = amount_to_pay * 100;
 
   const createOrder = async () => {
-    SetLoading(true);
-    const res = await fetch('/api/createOrder', {
-      method: 'POST',
-      body: JSON.stringify({ amount: amountToPay }),
-    });
-    const data = await res.json();
-    const paymentData = {
-      key: process.env.key_id,
-      order_id: data.id,
+    if (!onBeforePayment()) {
+      return;
+    }
 
-      handler: async function (response: any) {
-        // verify payment
-        const res = await fetch('/api/verify', {
-          method: 'POST',
-          body: JSON.stringify({
-            orderId: response.razorpay_order_id,
-            razorpayPaymentId: response.razorpay_payment_id,
-            razorpaySignature: response.razorpay_signature,
-          }),
-        });
-        const data = await res.json();
-        if (data.isOk) {
-          toast.success('Registration successful');
-          const response = await fetch(`/api/purchase`, {
+    SetLoading(true);
+    try {
+      const res = await fetch('/api/createOrder', {
+        method: 'POST',
+        body: JSON.stringify({ amount: amountToPay }),
+      });
+      const data = await res.json();
+      const paymentData = {
+        key: process.env.key_id,
+        order_id: data.id,
+
+        handler: async function (response: any) {
+          // verify payment
+          const res = await fetch('/api/verify', {
             method: 'POST',
             body: JSON.stringify({
-              form_values,
-              course_name,
-              amountToPay: amountToPay / 100,
+              orderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
             }),
           });
-          const res = await response.json();
-          if (res.id) {
-            SetLoading(false);
-            router.push('/');
-            toast.success('added to database');
-            reset_form_values();
+          const data = await res.json();
+          if (data.isOk) {
+            toast.success('Registration successful');
+            const response = await fetch(`/api/purchase`, {
+              method: 'POST',
+              body: JSON.stringify({
+                form_values,
+                course_name,
+                amountToPay: amountToPay / 100,
+              }),
+            });
+            const res = await response.json();
+            if (res.id) {
+              SetLoading(false);
+              router.push(`/courses/${res.courseId}`);
+              toast.success('Course access granted');
+              reset_form_values();
+            } else {
+              SetLoading(false);
+              toast.error(`Please Contact to Administrator`);
+            }
           } else {
-            SetLoading(false);
-            toast.error(`Please Contact to Administrator`);
+            alert('Payment failed');
           }
-        } else {
-          alert('Payment failed');
-        }
-      },
-    };
+        },
+      };
 
-    const payment = new (window as any).Razorpay(paymentData);
-    payment.open();
+      const payment = new (window as any).Razorpay(paymentData);
+      payment.open();
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error('Payment failed');
+    }
     SetLoading(false);
   };
 

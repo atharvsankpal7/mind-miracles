@@ -3,19 +3,49 @@ import { courses } from '@/types';
 import { NextRequest, NextResponse } from 'next/server';
 import { FormState } from '@/store';
 import { sendCounsellingConfirmation } from '@/mail';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth_options';
 
 export async function POST(request: NextRequest) {
-  const { form_values, course_name, amount_to_pay } =
-    (await request.json()) as {
-      form_values: FormState;
-      course_name: courses;
-      amount_to_pay: number;
-    };
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { form_values, course_name, amount_to_pay } = (await request.json()) as {
+    form_values: FormState;
+    course_name: courses;
+    amount_to_pay: number;
+  };
 
   const { name, age, whatsapp, email } = form_values;
   try {
     switch (course_name) {
       case courses['seven-day-program']:
+        // Create course for user
+        const course = await db.course.create({
+          data: {
+            name: "7 Days Program",
+            userId: session.user.id,
+            from: new Date(),
+            to: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+          }
+        });
+
+        // Create default videos
+        for (let i = 1; i <= 7; i++) {
+          await db.video.create({
+            data: {
+              title: `Day ${i} Video`,
+              description: `Video content for day ${i}`,
+              vimeoId: "1085632450", // Using the sample video ID for now
+              dayNumber: i,
+              courseId: course.id,
+            }
+          });
+        }
+
         const newPurchase = await db.sevenDaysProgramUser.create({
           data: {
             name,
@@ -25,9 +55,11 @@ export async function POST(request: NextRequest) {
             amountPaid: 1499,
           },
         });
+
         return NextResponse.json({
           message: `Registration successful`,
           id: newPurchase.id,
+          courseId: course.id,
         });
 
       case courses['personal-couselling']:
@@ -56,6 +88,7 @@ export async function POST(request: NextRequest) {
         });
     }
   } catch (error) {
+    console.error('Purchase error:', error);
     return NextResponse.json({
       message: 'Registration failed',
     });

@@ -12,6 +12,10 @@ import { useRecoilState } from 'recoil';
 import { registrationFormStateAtom } from '@/store';
 import { PayAndRegisterButton } from '../7-days-program/PayAndRegisterButton';
 import { courses } from '@/types';
+import { useSession } from 'next-auth/react';
+import { signIn } from 'next-auth/react';
+import { toast } from 'sonner';
+import { Button } from '../ui/button';
 
 export function ProgramRegistrationForm({
   course_name,
@@ -21,6 +25,7 @@ export function ProgramRegistrationForm({
   amount_to_pay: number;
 }) {
   const [formState, setFormState] = useRecoilState(registrationFormStateAtom);
+  const { data: session } = useSession();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -28,6 +33,26 @@ export function ProgramRegistrationForm({
       ...prev,
       [name]: value,
     }));
+  };
+
+  const validateForm = () => {
+    if (!formState.name || !formState.email || !formState.whatsapp || !formState.age) {
+      toast.error('Please fill in all fields');
+      return false;
+    }
+    return true;
+  };
+
+  const handlePayment = () => {
+    if (!session) {
+      toast.error('Please sign in to continue');
+      signIn('google');
+      return;
+    }
+
+    if (!validateForm()) {
+      return;
+    }
   };
 
   return (
@@ -86,10 +111,20 @@ export function ProgramRegistrationForm({
                     onChange={handleInputChange}
                   />
                 </div>
-                <PayAndRegisterButton
-                  course_name={course_name}
-                  amount_to_pay={amount_to_pay}
-                />
+                {session ? (
+                  <PayAndRegisterButton
+                    course_name={course_name}
+                    amount_to_pay={amount_to_pay}
+                    onBeforePayment={validateForm}
+                  />
+                ) : (
+                  <Button
+                    onClick={() => signIn('google')}
+                    className="w-full bg-green-700 hover:bg-[#3a5a40]"
+                  >
+                    Sign in to Continue
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
