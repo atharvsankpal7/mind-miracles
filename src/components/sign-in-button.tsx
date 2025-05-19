@@ -25,7 +25,7 @@ export const SignInButton = () => {
               role="menu"
               data-popover="profile-menu"
               data-popover-placement="bottom"
-              className="absolute z-10 mr-12 min-w-[150px] overflow-auto rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg shadow-sm focus:outline-none"
+              className="absolute z-10 mr-12 min-w-[150px] overflow-auto rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg  focus:outline-none"
             >
               <li
                 role="menuitem"

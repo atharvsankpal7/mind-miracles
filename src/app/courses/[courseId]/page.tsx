@@ -86,6 +86,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                     videoId={video.id}
                     title={video.title}
                     description={video.description}
+                    vimeoId={video.id}
                   />
                 </div>
               )}
