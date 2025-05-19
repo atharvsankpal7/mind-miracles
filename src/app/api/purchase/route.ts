@@ -5,6 +5,7 @@ import { FormState } from '@/store';
 import { sendCounsellingConfirmation } from '@/mail';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth_options';
+import { seedVideos } from '../../../../prisma/seedVideos';
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -33,14 +34,14 @@ export async function POST(request: NextRequest) {
           }
         });
 
-        // Create default videos
-        for (let i = 1; i <= 7; i++) {
+        // Create videos using seed data
+        for (const videoData of seedVideos) {
           await db.video.create({
             data: {
-              title: `Day ${i} Video`,
-              description: `Video content for day ${i}`,
-              vimeoId: "1085632450", // Using the sample video ID for now
-              dayNumber: i,
+              title: videoData.title,
+              description: videoData.description,
+              vimeoId: videoData.vimeoId,
+              dayNumber: videoData.dayNumber,
               courseId: course.id,
             }
           });
